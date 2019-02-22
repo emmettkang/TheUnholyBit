@@ -9,6 +9,11 @@ window.requestAnimFrame = (function () {
             };
 })();
 
+var pointerLocked = false;
+
+var audio = new Audio('./villageMusic.mp3');
+audio.volume = 0.10; // 75%
+audio.loop = true;
 
 
 //function canvasLoaded(){
@@ -18,6 +23,7 @@ window.requestAnimFrame = (function () {
 
 function GameEngine() {
     this.entities = [];
+    this.projectiles = [];
     this.ctx = null;
     this.surfaceWidth = null;
     this.surfaceHeight = null;
@@ -25,6 +31,7 @@ function GameEngine() {
     this.a = false;
     this.s = false;
     this.d = false;
+    this.mute = false;
     this.lclick = false;
     this.pointerx = 50;
     this.pointery = 50;
@@ -51,29 +58,38 @@ GameEngine.prototype.start = function (player, camera) {
     var that = this;
     var canvas = this.ctx.canvas;
     var mousePositionUpdate = function(e) {
-        var dx = e.movementX;
-        var dy = e.movementY;
-        if(that.pointerx + dx>that.player.x - canvas.width/2 && that.pointerx + dx<that.player.x + canvas.width/2){
-            that.pointerx += dx;
+        if(that.pointerLocked){
+            var dx = e.movementX;
+            var dy = e.movementY;
+            if(that.pointerx + dx>that.player.x - canvas.width/2 && that.pointerx + dx<that.player.x + canvas.width/2){
+                that.pointerx += dx;
+            }
+            if(that.pointery + dy>that.player.y - canvas.height/2 && that.pointery + dy<that.player.y + canvas.height/2){
+                that.pointery += dy;
+            }
         }
-        if(that.pointery + dy>that.player.y - canvas.height/2 && that.pointery + dy<that.player.y + canvas.height/2){
-            that.pointery += dy;
-        }
-        document.getElementById("debug-out").innerHTML = `Pointer Coordinates: x-${that.pointerx}, y-${that.pointery}`;
-        // that.pointerx += dx;
-        // that.pointery += dy;
+        
     }
     document.addEventListener('pointerlockchange', () => {
         if(document.pointerLockElement === canvas){
             document.addEventListener("mousemove", mousePositionUpdate);
             that.pointerLocked = true;
+            pointerLocked = true;
+            if (audio.play && !this.mute) audio.play();
+
         } else {
             document.removeEventListener("mousemove", mousePositionUpdate);
             that.pointerLocked = false;
+            pointerLocked = false;
+            that.w = false;
+            that.a = false;
+            that.s = false;
+            that.d = false;
+            that.lclick = false;
+            audio.pause();
         }
     });
     console.log("starting game");
-    var that = this;
     (function gameLoop() {
         that.loop();
         requestAnimFrame(gameLoop, that.ctx.canvas);
@@ -100,10 +116,23 @@ GameEngine.prototype.startInput = function () {
 
     this.ctx.canvas.addEventListener("keydown", (e) => {
         that.handleInputs(e.code, true);
+        if(e.code === "KeyM"){
+            console.log("in if");
+            console.log(e.code);
+            this.mute = !this.mute;
+            if(this.mute){
+                audio.pause();
+            } else {
+                audio.play();
+            }
+        }
     });
     this.ctx.canvas.addEventListener("keyup", (e) => {
         that.handleInputs(e.code, false);
     });
+    // this.ctx.canvas.addEventListener("keypress", (e) => {
+        
+    // });
 
 }
 
@@ -120,13 +149,17 @@ GameEngine.prototype.handleInputs = function(keycode, value){
             break;
         case "KeyD":
             this.d = value;
-            break;
-    }    
+            break;       
+    }   
 }
 
 GameEngine.prototype.addEntity = function (entity) {
     console.log('added entity');
     this.entities.push(entity);
+}
+GameEngine.prototype.addProjectile = function (entity) {
+    console.log('added projectile');
+    this.projectiles.push(entity);
 }
 
 GameEngine.prototype.draw = function () {
@@ -138,14 +171,24 @@ GameEngine.prototype.draw = function () {
             this.entities[i].draw(this.ctx);
         }
     }
+    for (var i = 0; i < this.projectiles.length; i++) {
+        if(!this.projectiles[i].removeFromWorld){
+            this.projectiles[i].draw(this.ctx);
+        }
+    }
     this.ctx.restore();
 }
 
 GameEngine.prototype.update = function () {
-    var entitiesCount = this.entities.length;
     this.camera.update();
-    for (var i = 0; i < entitiesCount; i++) {
+    for (var i = 0; i < this.entities.length; i++) {
         var entity = this.entities[i];
+        if(!entity.removeFromWorld){
+            entity.update();
+        }
+    }
+    for (var i = 0; i < this.projectiles.length; i++) {
+        var entity = this.projectiles[i];
         if(!entity.removeFromWorld){
             entity.update();
         }
@@ -165,13 +208,17 @@ function Timer() {
 }
 
 Timer.prototype.tick = function () {
-    var wallCurrent = Date.now();
-    var wallDelta = (wallCurrent - this.wallLastTimestamp) / 1000;
-    this.wallLastTimestamp = wallCurrent;
+    if(pointerLocked){
+        var wallCurrent = Date.now();
+        var wallDelta = (wallCurrent - this.wallLastTimestamp) / 1000;
+        this.wallLastTimestamp = wallCurrent;
 
-    var gameDelta = Math.min(wallDelta, this.maxStep);
-    this.gameTime += gameDelta;
-    return gameDelta;
+        var gameDelta = Math.min(wallDelta, this.maxStep);
+        this.gameTime += gameDelta;
+        return gameDelta;
+    } else {
+        return 0;
+    }
 }
 
 function Entity(game, x, y) {
@@ -188,7 +235,9 @@ Entity.prototype.draw = function (ctx) {
     if (this.game.showOutlines && this.radius) {
         this.game.ctx.beginPath();
         this.game.ctx.strokeStyle = "green";
-        this.game.ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+       // this.game.ctx.arc(this.centerx, this.centery, this.radius.r, 0, Math.PI * 2, false);
+        
+        this.game.ctx.arc(this.x+this.radius.offsetx, this.y+this.radius.offsety, this.radius.r, 0, Math.PI * 2, false);
         this.game.ctx.stroke();
         this.game.ctx.closePath();
     }
@@ -202,9 +251,24 @@ Entity.prototype.rotateAndCache = function (image, angle) {
     var offscreenCtx = offscreenCanvas.getContext('2d');
     offscreenCtx.save();
     offscreenCtx.translate(size / 2, size / 2);
-    offscreenCtx.rotate(angle);
+    offscreenCtx.rotate(-angle);
     offscreenCtx.translate(0, 0);
-    offscreenCtx.drawImage(image.img, -(image.width / 2), -(image.height / 2));
+    if (!image.hasOwnProperty("img")) {
+        var r = getRotatedRect(image);
+        offscreenCtx.strokeRect(r.x, r.y, r.w, r.h);
+    } else {
+        offscreenCtx.drawImage(image.img, -(image.width / 2), -(image.height / 2));
+    }
     offscreenCtx.restore();
-    return offscreenCanvas;
+    return {img:offscreenCanvas, center:{x:size/2, y:size/2}};
+    //return offscreenCanvas;
+}
+
+function getRotatedRect(boundingBox) {
+    return {
+      x: boundingBox.width / -2,
+      y: boundingBox.height / -2,
+      w: boundingBox.width,
+      h: boundingBox.height
+    };
 }
