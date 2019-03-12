@@ -10,7 +10,7 @@ window.requestAnimFrame = (function () {
 })();
 
 var pointerLocked = false;
-
+var timeSlowed = false;
 var audio = new Audio('./villageMusic.mp3');
 audio.volume = 0.10; // 75%
 audio.loop = true;
@@ -31,13 +31,17 @@ function GameEngine() {
     this.a = false;
     this.s = false;
     this.d = false;
+    this.p = false;
     this.mute = false;
     this.lclick = false;
+    this.pclick = false;
+    this.change = false;
     this.pointerx = 50;
     this.pointery = 50;
     this.pointerLocked = false;
     // this.showOutlines = true;
-    this.showOutlines = false;
+   this.showOutlines = false;
+    this.muteBackgroundMusic = false;
     this.camera = null;
     this.player = null;
 }
@@ -89,11 +93,23 @@ GameEngine.prototype.start = function (player, camera) {
             audio.pause();
         }
     });
-    console.log("starting game");
+/*
+    document.getElementById("myBtn").addEventListener("click", function(){
+        this.style.backgroundColor = "red";
+      });
+      */
+      console.log("starting game");
     (function gameLoop() {
         that.loop();
         requestAnimFrame(gameLoop, that.ctx.canvas);
     })();
+}
+
+GameEngine.prototype.getBackground = function(){
+    for(var i = 0; i<entities.length; i++){
+        var ent = entities[i];
+        if(ent instanceof Background) return ent;
+    }
 }
 
 GameEngine.prototype.startInput = function () {
@@ -117,8 +133,6 @@ GameEngine.prototype.startInput = function () {
     this.ctx.canvas.addEventListener("keydown", (e) => {
         that.handleInputs(e.code, true);
         if(e.code === "KeyM"){
-            console.log("in if");
-            console.log(e.code);
             this.mute = !this.mute;
             if(this.mute){
                 audio.pause();
@@ -126,6 +140,9 @@ GameEngine.prototype.startInput = function () {
                 audio.play();
             }
         }
+        // if(e.code === "KeyN") {
+        //     sceneManager.loadNextLevel();
+        // } 
     });
     this.ctx.canvas.addEventListener("keyup", (e) => {
         that.handleInputs(e.code, false);
@@ -149,7 +166,11 @@ GameEngine.prototype.handleInputs = function(keycode, value){
             break;
         case "KeyD":
             this.d = value;
-            break;       
+            break;   
+        // case "KeyP":
+        //     this.p = value;
+        //     break;   
+            
     }   
 }
 
@@ -176,6 +197,12 @@ GameEngine.prototype.draw = function () {
             this.projectiles[i].draw(this.ctx);
         }
     }
+    if(timeSlowed) {
+        this.ctx.globalAlpha = .2;
+        this.ctx.drawImage(AM.getAsset("./img/blue.png"), this.player.x-700, this.player.y-350);
+        this.ctx.globalAlpha = 1;
+    }
+    if(this.crosshair) this.crosshair.draw();
     this.ctx.restore();
 }
 
@@ -205,6 +232,7 @@ function Timer() {
     this.gameTime = 0;
     this.maxStep = 0.05;
     this.wallLastTimestamp = 0;
+    this.slowTimer = 0;
 }
 
 Timer.prototype.tick = function () {
@@ -215,7 +243,17 @@ Timer.prototype.tick = function () {
 
         var gameDelta = Math.min(wallDelta, this.maxStep);
         this.gameTime += gameDelta;
-        return gameDelta;
+        if(timeSlowed){
+            this.slowTimer += gameDelta;
+            if(this.slowTimer>=12) {
+                timeSlowed = false;
+                this.slowTimer = 0;
+            }
+            return gameDelta/2;
+        } else {
+            return gameDelta;
+        }
+        
     } else {
         return 0;
     }
