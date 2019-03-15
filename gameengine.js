@@ -53,7 +53,7 @@ GameEngine.prototype.init = function (ctx) {
     this.rect = this.ctx.canvas.getBoundingClientRect();
     this.timer = new Timer();
     this.startInput();
-    console.log('game initialized');
+    //console.log('game initialized');
 }
 
 GameEngine.prototype.start = function (player, camera) {
@@ -106,8 +106,8 @@ GameEngine.prototype.start = function (player, camera) {
 }
 
 GameEngine.prototype.getBackground = function(){
-    for(var i = 0; i<entities.length; i++){
-        var ent = entities[i];
+    for(var i = 0; i<this.entities.length; i++){
+        var ent = this.entities[i];
         if(ent instanceof Background) return ent;
     }
 }
@@ -140,9 +140,14 @@ GameEngine.prototype.startInput = function () {
                 audio.play();
             }
         }
-        // if(e.code === "KeyN") {
-        //     sceneManager.loadNextLevel();
-        // } 
+        if(e.code === "KeyN") {
+            sceneManager.loadNextLevel();
+        } 
+
+        if (e.code === "Digit1") {
+            this.player.usePowerUp();
+            this.player.usingPU = true;
+        }
     });
     this.ctx.canvas.addEventListener("keyup", (e) => {
         that.handleInputs(e.code, false);
@@ -167,9 +172,9 @@ GameEngine.prototype.handleInputs = function(keycode, value){
         case "KeyD":
             this.d = value;
             break;   
-        // case "KeyP":
-        //     this.p = value;
-        //     break;   
+        case "KeyP":
+            this.p = value;
+            break; 
             
     }   
 }

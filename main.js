@@ -114,9 +114,11 @@ function Background(game, spritesheet, data) {
     this.spritesheet = spritesheet;
     this.game = game;
     this.ctx = game.ctx;
-    this.boundingBoxes = data.boundingBoxes;
-    this.nextLevelBox = data.nextLevelBox
-
+    if (data) {
+        this.boundingBoxes = data.boundingBoxes;
+        this.nextLevelBox = data.nextLevelBox    
+    }
+    
     this.ctx = game.ctx;
 };
 
@@ -124,13 +126,6 @@ Background.prototype.draw = function () {
     this.ctx.drawImage(this.spritesheet,
                    this.x, this.y);
     var that = this;
-
-    if (this.spritesheet === AM.getAsset("./img/villagemap.png")) {
-        this.ctx.font = "24px Arial";
-        this.ctx.fillStyle = "black";
-        this.ctx.fillText(`Shoot: Left Click, M = mute sounds`, 1000, 924);
-        this.ctx.fillText(`Control: W = up, S = down, D = right, A = left`, 1000, 900);
-    }
     if(this.game.showOutlines) {
         this.boundingBoxes.forEach((box) => {
             that.ctx.moveTo(box.p1.x, box.p1.y);
@@ -144,14 +139,16 @@ Background.prototype.draw = function () {
             that.ctx.fillText(`${box.n}(3)`, box.p3.x+5, box.p3.y+5);
             that.ctx.fillText(`${box.n}(4)`, box.p4.x+5, box.p4.y+5);
         });
-    }/* if (this.game.showOutlines) {
-            that.ctx.moveTo(this.nextLevelBox.p1.x, this.nextLevelBox.p1.y);
-            that.ctx.lineTo(this.nextLevelBox.p2.x, this.nextLevelBox.p2.y);
-            that.ctx.lineTo(this.nextLevelBox.p3.x, this.nextLevelBox.p3.y);
-            that.ctx.lineTo(this.nextLevelBox.p4.x, this.nextLevelBox.p4.y);
-            that.ctx.lineTo(this.nextLevelBox.p1.x, this.nextLevelBox.p1.y);
-            that.ctx.stroke();
-    }*/
+
+    }
+    this.ctx.font = "18px Arial";
+
+    if (sceneManager.level === "village") {
+        this.ctx.fillText("Search for the Power Ups!", 900, 850);
+        this.ctx.fillText("you can use \"1\" key to use Power Ups!", 900, 874);
+        this.ctx.fillText("*You will lose your current power up when you pick up a new one!", 900, 898);
+    
+    }
 };
 
 Background.prototype.update = function () {
@@ -189,5 +186,7 @@ var sceneManager;
 
 function oncanvasload(){
     sceneManager = new SceneManager();
-    sceneManager.loadVillageMap();
+    //sceneManager.loadVillageMap();
+    sceneManager.loadMenu();
+    //sceneManager.loadComplete();
 }
